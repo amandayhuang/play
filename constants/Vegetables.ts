@@ -9,7 +9,7 @@ export const vegetables = [
   "Bell Pepper",
   "Bok Choy",
   "Broccoli",
-  "Brussels Sprout",
+  "Brussel Sprout",
   "Cabbage",
   "Carrot",
   "Cauliflower",
