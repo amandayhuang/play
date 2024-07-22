@@ -36,6 +36,7 @@ export default function TabTwoScreen() {
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
+    setStrikes(0);
   };
 
   // Create a function to handle inserts
@@ -62,10 +63,8 @@ export default function TabTwoScreen() {
             };
           })
         );
-        return isCorrect;
       }
     });
-    setStrikes(strikes + 1);
     return isCorrect;
   };
 
@@ -106,7 +105,10 @@ export default function TabTwoScreen() {
   });
 
   const clickHandler = async () => {
-    checkResponse(userInput);
+    const isCorrect = checkResponse(userInput);
+    if (!isCorrect) {
+      setStrikes(strikes + 1);
+    }
     channel.send({
       type: "broadcast",
       event: USER_EVENT,
