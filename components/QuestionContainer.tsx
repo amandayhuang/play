@@ -22,10 +22,7 @@ type ItemProps = {
 };
 
 const Item = ({ item, onPress, backgroundColor, textColor }: ItemProps) => (
-  <TouchableOpacity
-    onPress={onPress}
-    style={[styles.item, { backgroundColor }]}
-  >
+  <TouchableOpacity style={[styles.item, { backgroundColor }]}>
     <Text style={[styles.title, { color: textColor }]}>
       {item.is_revealed ? item.title : `${item.rank}`}
     </Text>
@@ -50,7 +47,10 @@ export const QuestionContainer = ({ question }: QuestionProps) => {
 
   return (
     <>
-      <ThemedText type="title">{question.title}</ThemedText>
+      <ThemedText type="title" style={styles.text}>
+        {question.title}
+      </ThemedText>
+      <Text style={styles.subtitle}>{`(via ${question.dataset_title})`}</Text>
       <SafeAreaView style={styles.container}>
         <FlatList
           data={question.answer}
@@ -75,5 +75,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 32,
+  },
+  text: {
+    margin: 10,
+    fontSize: 30,
+  },
+  subtitle: {
+    color: "gray",
+    fontSize: 13,
+    marginLeft: 15,
   },
 });

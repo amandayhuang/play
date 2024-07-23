@@ -1,5 +1,18 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { StyleSheet, Button, TextInput, View } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import {
+  StyleSheet,
+  Button,
+  TextInput,
+  View,
+  TouchableOpacity,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
+
 import { Feather } from "@expo/vector-icons";
 
 import ParallaxScrollView from "@/components/ParallaxScrollView";
@@ -76,6 +89,8 @@ export default function TabTwoScreen() {
           `
       id,
       title,
+      dataset_title,
+      dataset_link,
       answer (
         id,
         title,
@@ -137,14 +152,21 @@ export default function TabTwoScreen() {
   //   .subscribe();
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
-      headerImage={
-        <Ionicons size={310} name="code-slash" style={styles.headerImage} />
-      }
+    // <ParallaxScrollView
+    //   headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
+    //   headerImage={
+    //     <Ionicons size={310} name="code-slash" style={styles.headerImage} />
+    //   }
+    // >
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
     >
       <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">{`Welcome, Anonymous ${handle}.`}</ThemedText>
+        <ThemedText
+          type="title"
+          style={styles.text}
+        >{`Welcome, Anonymous ${handle}.`}</ThemedText>
       </ThemedView>
       <View style={styles.strikes}>
         <Feather
@@ -172,7 +194,7 @@ export default function TabTwoScreen() {
         <ThemedText type="title">no more questions</ThemedText>
       )}
 
-      <TextInput
+      {/* <TextInput
         style={styles.input}
         onChangeText={setUserInput}
         value={userInput}
@@ -180,8 +202,24 @@ export default function TabTwoScreen() {
         placeholderTextColor="#999"
       />
       <Button onPress={clickHandler} title="Submit" disabled={strikes > 2} />
-      <Button onPress={nextQuestion} title="Next Question" />
-    </ParallaxScrollView>
+      <Button onPress={nextQuestion} title="Next Question" /> */}
+      <View style={styles.toolbar}>
+        <TextInput
+          style={styles.input}
+          value={userInput}
+          onChangeText={setUserInput}
+          placeholder="Enter guess"
+        />
+        <TouchableOpacity style={styles.button} onPress={clickHandler}>
+          <Text style={styles.buttonText}>Submit</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.button} onPress={nextQuestion}>
+          <MaterialIcons name="navigate-next" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
+    // </ParallaxScrollView>
   );
 }
 
@@ -196,17 +234,64 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
-  input: {
-    height: 40,
-    borderColor: "gray",
-    borderWidth: 1,
-    borderRadius: 5,
-    paddingHorizontal: 10,
-    fontSize: 16,
-  },
+  // input: {
+  //   height: 40,
+  //   borderColor: "gray",
+  //   borderWidth: 1,
+  //   borderRadius: 5,
+  //   paddingHorizontal: 10,
+  //   fontSize: 16,
+  // },
   strikes: {
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-around",
+    margin: 10,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: "black",
+  },
+  content: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  toolbar: {
+    flexDirection: "row",
+    padding: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#ccc",
+    backgroundColor: "#fff",
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 5,
+    padding: 10,
+    marginRight: 10,
+  },
+  button: {
+    backgroundColor: "#007AFF",
+    padding: 10,
+    borderRadius: 5,
+    justifyContent: "center",
+    marginRight: 5,
+  },
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  text: {
+    margin: 10,
+    fontSize: 26,
+  },
+  nextButton: {
+    backgroundColor: "#007AFF",
+    padding: 10,
+    borderRadius: 5,
+    justifyContent: "center",
+    marginRight: 5,
   },
 });
