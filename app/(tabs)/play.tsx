@@ -1,21 +1,15 @@
-import Ionicons from "@expo/vector-icons/Ionicons";
 import { MaterialIcons } from "@expo/vector-icons";
 import {
   StyleSheet,
-  Button,
   TextInput,
   View,
   TouchableOpacity,
   Text,
   KeyboardAvoidingView,
   Platform,
-  ViewStyle,
-  TextStyle,
 } from "react-native";
 
 import { Feather } from "@expo/vector-icons";
-
-import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
@@ -26,40 +20,64 @@ import { useEffect, useState } from "react";
 import { QuestionContainer } from "@/components/QuestionContainer";
 
 import { Question } from "@/types/supabase";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export default function TabTwoScreen() {
-  const room = "room_1";
-  const channel = supabase.channel(room);
-  const GAME_STATE_CHANGE = "game_state_change";
-
-  channel
-    .on("broadcast", { event: GAME_STATE_CHANGE }, (event) => {
-      console.log("game state change received", event);
-      const {
-        payload: { questions, currentQuestionIndex },
-      } = event;
-      setQuestions(questions);
-      setCurrentQuestionIndex(currentQuestionIndex);
-    })
-    .subscribe();
-
   const { sessionId, handle } = useSession();
   const [userInput, setUserInput] = useState("");
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [strikes, setStrikes] = useState(0);
+  const roomName = "room_1";
+  const GAME_STATE_CHANGE = "game_state_change";
+  const [room, setRoom] = useState<RealtimeChannel | null>(null);
+
+  useEffect(() => {
+    if (!room && sessionId) {
+      const newRoom = supabase.channel(roomName);
+      setRoom(newRoom);
+
+      newRoom
+        .on("broadcast", { event: GAME_STATE_CHANGE }, (event) => {
+          console.log("game state change received", event);
+          const {
+            payload: { questions, currentQuestionIndex },
+          } = event;
+          setQuestions(questions);
+          setCurrentQuestionIndex(currentQuestionIndex);
+        })
+        .on("presence", { event: "join" }, ({ key, newPresences }) => {
+          console.log("join", key, newPresences);
+        })
+        .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
+          console.log("leave", key, leftPresences);
+        })
+        .subscribe(async (status) => {
+          const userStatus = {
+            sessionId,
+            handle,
+            online_at: new Date().toISOString(),
+          };
+          if (status !== "SUBSCRIBED") {
+            return;
+          }
+
+          await newRoom.track(userStatus);
+        });
+    }
+  });
 
   const nextQuestion = () => {
     if (questions && currentQuestionIndex >= questions?.length - 1) {
       setCurrentQuestionIndex(0);
-      channel.send({
+      room?.send({
         type: "broadcast",
         event: GAME_STATE_CHANGE,
         payload: { questions, currentQuestionIndex: 0 },
       });
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
-      channel.send({
+      room?.send({
         type: "broadcast",
         event: GAME_STATE_CHANGE,
         payload: { questions, currentQuestionIndex: currentQuestionIndex + 1 },
@@ -67,11 +85,6 @@ export default function TabTwoScreen() {
     }
     setStrikes(0);
   };
-
-  // Create a function to handle inserts
-  // const handleInserts = (payload: any) => {
-  //   console.log("Change received!", payload);
-  // };
 
   const checkResponse = (input: string) => {
     let isCorrect = false;
@@ -95,7 +108,7 @@ export default function TabTwoScreen() {
           };
         });
         setQuestions(updatedQuestions);
-        channel.send({
+        room?.send({
           type: "broadcast",
           event: GAME_STATE_CHANGE,
           payload: { questions: updatedQuestions, currentQuestionIndex },
@@ -148,27 +161,8 @@ export default function TabTwoScreen() {
     if (!isCorrect) {
       setStrikes(strikes + 1);
     }
-    // const { data, error } = await supabase
-    //   .from("room")
-    //   .select("name, is_active");
-
-    // const { data: insertData, error: insertError } = await supabase
-    //   .from("room")
-    //   .insert({ name: "Denmark", is_active: true });
-
-    // console.log("INSERT", insertData, insertError);
     setUserInput("");
   };
-
-  // Listen to inserts
-  // supabase
-  //   .channel("room-1")
-  //   .on(
-  //     "postgres_changes",
-  //     { event: "INSERT", schema: "public", table: "room" },
-  //     handleInserts
-  //   )
-  //   .subscribe();
 
   return (
     <KeyboardAvoidingView
@@ -198,24 +192,11 @@ export default function TabTwoScreen() {
           color={strikes > 2 ? "red" : "gray"}
         />
       </View>
-      {/* <ThemedText>
-        This app includes example code to help you get started.
-      </ThemedText> */}
       {questions && currentQuestionIndex <= questions.length ? (
         <QuestionContainer question={questions[currentQuestionIndex]} />
       ) : (
         <ThemedText type="title">no more questions</ThemedText>
       )}
-
-      {/* <TextInput
-        style={styles.input}
-        onChangeText={setUserInput}
-        value={userInput}
-        placeholder="Type here..."
-        placeholderTextColor="#999"
-      />
-      <Button onPress={clickHandler} title="Submit" disabled={strikes > 2} />
-      <Button onPress={nextQuestion} title="Next Question" /> */}
       <View style={styles.toolbar}>
         <TextInput
           style={styles.input}
