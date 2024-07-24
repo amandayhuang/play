@@ -26,6 +26,9 @@ const Item = ({ item, onPress, backgroundColor, textColor }: ItemProps) => (
     <Text style={[styles.title, { color: textColor }]}>
       {item.is_revealed ? item.title : `${item.rank}`}
     </Text>
+    <Text style={[styles.subtitle, { marginLeft: 0 }]}>
+      {item.is_revealed ? item.reveal_text : ``}
+    </Text>
   </TouchableOpacity>
 );
 

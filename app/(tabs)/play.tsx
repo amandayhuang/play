@@ -28,12 +28,18 @@ import { QuestionContainer } from "@/components/QuestionContainer";
 import { Question } from "@/types/supabase";
 
 export default function TabTwoScreen() {
-  const channel = supabase.channel("room_1");
-  const USER_EVENT = "submit";
+  const room = "room_1";
+  const channel = supabase.channel(room);
+  const GAME_STATE_CHANGE = "game_state_change";
 
   channel
-    .on("broadcast", { event: USER_EVENT }, (event) => {
-      console.log("user event received", event);
+    .on("broadcast", { event: GAME_STATE_CHANGE }, (event) => {
+      console.log("game state change received", event);
+      const {
+        payload: { questions, currentQuestionIndex },
+      } = event;
+      setQuestions(questions);
+      setCurrentQuestionIndex(currentQuestionIndex);
     })
     .subscribe();
 
@@ -46,8 +52,18 @@ export default function TabTwoScreen() {
   const nextQuestion = () => {
     if (questions && currentQuestionIndex >= questions?.length - 1) {
       setCurrentQuestionIndex(0);
+      channel.send({
+        type: "broadcast",
+        event: GAME_STATE_CHANGE,
+        payload: { questions, currentQuestionIndex: 0 },
+      });
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
+      channel.send({
+        type: "broadcast",
+        event: GAME_STATE_CHANGE,
+        payload: { questions, currentQuestionIndex: currentQuestionIndex + 1 },
+      });
     }
     setStrikes(0);
   };
@@ -63,19 +79,27 @@ export default function TabTwoScreen() {
     questions[currentQuestionIndex]?.answer.forEach((a) => {
       if (a.title.toLowerCase() === input.toLowerCase()) {
         isCorrect = true;
-        setQuestions(
-          questions.map((q) => {
-            return {
-              ...q,
-              answer: q.answer.map((innerA) => {
-                return {
-                  ...innerA,
-                  is_revealed: innerA.id === a.id ? true : innerA.is_revealed,
-                };
-              }),
-            };
-          })
-        );
+        const updatedQuestions = questions.map((q) => {
+          return {
+            ...q,
+            answer: q.answer.map((innerA) => {
+              return {
+                ...innerA,
+                is_revealed: innerA.id === a.id ? true : innerA.is_revealed,
+                reveal_text:
+                  innerA.id === a.id
+                    ? `Guessed by Anonymous ${handle}`
+                    : innerA.reveal_text,
+              };
+            }),
+          };
+        });
+        setQuestions(updatedQuestions);
+        channel.send({
+          type: "broadcast",
+          event: GAME_STATE_CHANGE,
+          payload: { questions: updatedQuestions, currentQuestionIndex },
+        });
       }
     });
     return isCorrect;
@@ -124,11 +148,6 @@ export default function TabTwoScreen() {
     if (!isCorrect) {
       setStrikes(strikes + 1);
     }
-    channel.send({
-      type: "broadcast",
-      event: USER_EVENT,
-      payload: { sessionId, handle, userInput },
-    });
     // const { data, error } = await supabase
     //   .from("room")
     //   .select("name, is_active");
@@ -152,12 +171,6 @@ export default function TabTwoScreen() {
   //   .subscribe();
 
   return (
-    // <ParallaxScrollView
-    //   headerBackgroundColor={{ light: "#D0D0D0", dark: "#353636" }}
-    //   headerImage={
-    //     <Ionicons size={310} name="code-slash" style={styles.headerImage} />
-    //   }
-    // >
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
@@ -219,7 +232,6 @@ export default function TabTwoScreen() {
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
-    // </ParallaxScrollView>
   );
 }
 

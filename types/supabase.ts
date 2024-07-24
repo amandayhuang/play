@@ -12,4 +12,5 @@ export interface Answer {
   question_id: number;
   is_revealed: boolean;
   rank: number;
+  reveal_text?: string;
 }
