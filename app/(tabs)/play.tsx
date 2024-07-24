@@ -28,9 +28,93 @@ export default function TabTwoScreen() {
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [strikes, setStrikes] = useState(0);
-  const roomName = "room_1";
+  const roomName = "room_3";
   const GAME_STATE_CHANGE = "game_state_change";
   const [room, setRoom] = useState<RealtimeChannel | null>(null);
+  const [gameStateId, setGameStateId] = useState(0);
+
+  const upsertGameState = async (
+    questions: Question[] | null,
+    currentQuestionIndex: number,
+    isActive: boolean
+  ) => {
+    if (gameStateId) {
+      const resp = await supabase
+        .from("game_state")
+        .update({
+          state: questions,
+          current_question_index: currentQuestionIndex,
+          is_active: isActive,
+        })
+        .eq("id", 1);
+      console.log("RESP", resp);
+    } else {
+      const resp = await supabase
+        .from("game_state")
+        .insert({
+          state: questions,
+          current_question_index: currentQuestionIndex,
+          room_name: roomName,
+          is_active: isActive,
+        })
+        .select();
+
+      if (resp.data) {
+        setGameStateId(resp.data[0].id);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const getExistingState = async () => {
+      const gameState = await supabase
+        .from("game_state")
+        .select("*")
+        .eq("room_name", roomName)
+        .eq("is_active", true)
+        .limit(1);
+
+      if (gameState?.data?.length) {
+        const [currentState] = gameState.data;
+        console.log("FETCHED CURRENT GAME", currentState);
+        setGameStateId(currentState.id);
+        setQuestions(currentState.state);
+        setCurrentQuestionIndex(currentState.current_question_index);
+      } else {
+        const questionsWithAnswers = await supabase
+          .from("question")
+          .select(
+            `
+      id,
+      title,
+      dataset_title,
+      dataset_link,
+      answer (
+        id,
+        title,
+        rank,
+        question_id
+      )
+    `
+          )
+          .order("id");
+        if (questionsWithAnswers.data?.length) {
+          setQuestions(
+            questionsWithAnswers.data.map((q) => {
+              return {
+                ...q,
+                answer: q.answer.map((a) => {
+                  return { ...a, is_revealed: false };
+                }),
+              };
+            })
+          );
+        }
+      }
+    };
+
+    getExistingState();
+  }, []);
 
   useEffect(() => {
     if (!room && sessionId) {
@@ -48,9 +132,24 @@ export default function TabTwoScreen() {
         })
         .on("presence", { event: "join" }, ({ key, newPresences }) => {
           console.log("join", key, newPresences);
+
+          const presenceState = newRoom.presenceState();
+          const userCount = Object.keys(presenceState).length;
+
+          console.log("Current user count:", userCount);
         })
         .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
           console.log("leave", key, leftPresences);
+
+          const presenceState = newRoom.presenceState();
+          const userCount = Object.keys(presenceState).length;
+
+          console.log("Current user count:", userCount);
+
+          if (userCount === 0) {
+            console.log("The room is now empty!");
+            upsertGameState(questions, currentQuestionIndex, false);
+          }
         })
         .subscribe(async (status) => {
           const userStatus = {
@@ -68,22 +167,18 @@ export default function TabTwoScreen() {
   });
 
   const nextQuestion = () => {
-    if (questions && currentQuestionIndex >= questions?.length - 1) {
-      setCurrentQuestionIndex(0);
-      room?.send({
-        type: "broadcast",
-        event: GAME_STATE_CHANGE,
-        payload: { questions, currentQuestionIndex: 0 },
-      });
-    } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      room?.send({
-        type: "broadcast",
-        event: GAME_STATE_CHANGE,
-        payload: { questions, currentQuestionIndex: currentQuestionIndex + 1 },
-      });
-    }
+    const nextIndex =
+      questions && currentQuestionIndex >= questions?.length - 1
+        ? 0
+        : currentQuestionIndex + 1;
+    setCurrentQuestionIndex(nextIndex);
+    room?.send({
+      type: "broadcast",
+      event: GAME_STATE_CHANGE,
+      payload: { questions, currentQuestionIndex: nextIndex },
+    });
     setStrikes(0);
+    upsertGameState(questions, currentQuestionIndex, true);
   };
 
   const checkResponse = (input: string) => {
@@ -113,48 +208,11 @@ export default function TabTwoScreen() {
           event: GAME_STATE_CHANGE,
           payload: { questions: updatedQuestions, currentQuestionIndex },
         });
+        upsertGameState(updatedQuestions, currentQuestionIndex, true);
       }
     });
     return isCorrect;
   };
-
-  useEffect(() => {
-    const getQuestions = async () => {
-      const questionsWithAnswers = await supabase
-        .from("question")
-        .select(
-          `
-      id,
-      title,
-      dataset_title,
-      dataset_link,
-      answer (
-        id,
-        title,
-        rank,
-        question_id
-      )
-    `
-        )
-        .order("id");
-      if (questionsWithAnswers.data?.length) {
-        setQuestions(
-          questionsWithAnswers.data.map((q) => {
-            return {
-              ...q,
-              answer: q.answer.map((a) => {
-                return { ...a, is_revealed: false };
-              }),
-            };
-          })
-        );
-      }
-    };
-
-    if (!questions) {
-      getQuestions();
-    }
-  });
 
   const clickHandler = async () => {
     const isCorrect = checkResponse(userInput);
