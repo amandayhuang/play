@@ -16,7 +16,7 @@ import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { supabase } from "@/util/supabase";
 
 import { useSession } from "@/context/SessionContext";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { QuestionContainer } from "@/components/QuestionContainer";
 
 import { Question } from "@/types/supabase";
@@ -32,12 +32,52 @@ export default function TabTwoScreen() {
   const GAME_STATE_CHANGE = "game_state_change";
   const [room, setRoom] = useState<RealtimeChannel | null>(null);
   const [gameStateId, setGameStateId] = useState(0);
+  const [shouldCloseRoom, setShouldCloseRoom] = useState(false);
+  const shouldCloseRoomRef = useRef(shouldCloseRoom);
+  const gameStateIdRef = useRef(gameStateId);
+
+  console.log("game id", gameStateId);
+
+  useEffect(() => {
+    shouldCloseRoomRef.current = shouldCloseRoom;
+  }, [shouldCloseRoom]);
+
+  useEffect(() => {
+    gameStateIdRef.current = gameStateId;
+  }, [gameStateId]);
+
+  useEffect(() => {
+    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      console.log("CLOSE?", shouldCloseRoomRef.current);
+      if (shouldCloseRoomRef.current) {
+        await upsertGameState(questions, currentQuestionIndex, false);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    // Cleanup function to remove the event listener
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   const upsertGameState = async (
     questions: Question[] | null,
     currentQuestionIndex: number,
     isActive: boolean
   ) => {
+    // close the room
+    if (!isActive) {
+      await supabase
+        .from("game_state")
+        .update({
+          is_active: isActive,
+        })
+        .eq("id", gameStateIdRef.current);
+    }
+
     if (gameStateId) {
       const resp = await supabase
         .from("game_state")
@@ -46,7 +86,7 @@ export default function TabTwoScreen() {
           current_question_index: currentQuestionIndex,
           is_active: isActive,
         })
-        .eq("id", 1);
+        .eq("id", gameStateIdRef.current);
       console.log("RESP", resp);
     } else {
       const resp = await supabase
@@ -136,6 +176,12 @@ export default function TabTwoScreen() {
           const presenceState = newRoom.presenceState();
           const userCount = Object.keys(presenceState).length;
 
+          if (userCount === 1) {
+            setShouldCloseRoom(true);
+          } else {
+            setShouldCloseRoom(false);
+          }
+
           console.log("Current user count:", userCount);
         })
         .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
@@ -145,6 +191,10 @@ export default function TabTwoScreen() {
           const userCount = Object.keys(presenceState).length;
 
           console.log("Current user count:", userCount);
+
+          if (userCount === 1) {
+            setShouldCloseRoom(true);
+          }
 
           if (userCount === 0) {
             console.log("The room is now empty!");
@@ -178,7 +228,7 @@ export default function TabTwoScreen() {
       payload: { questions, currentQuestionIndex: nextIndex },
     });
     setStrikes(0);
-    upsertGameState(questions, currentQuestionIndex, true);
+    upsertGameState(questions, nextIndex, true);
   };
 
   const checkResponse = (input: string) => {
