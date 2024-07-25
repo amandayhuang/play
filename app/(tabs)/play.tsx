@@ -28,7 +28,7 @@ export default function TabTwoScreen() {
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [strikes, setStrikes] = useState(0);
-  const roomName = "room_3";
+  const roomName = "game_room";
   const GAME_STATE_CHANGE = "game_state_change";
   const [room, setRoom] = useState<RealtimeChannel | null>(null);
   const [gameStateId, setGameStateId] = useState(0);
@@ -116,7 +116,6 @@ export default function TabTwoScreen() {
 
       if (gameState?.data?.length) {
         const [currentState] = gameState.data;
-        console.log("FETCHED CURRENT GAME", currentState);
         setGameStateId(currentState.id);
         setQuestions(currentState.state);
         setCurrentQuestionIndex(currentState.current_question_index);
@@ -163,7 +162,6 @@ export default function TabTwoScreen() {
 
       newRoom
         .on("broadcast", { event: GAME_STATE_CHANGE }, (event) => {
-          console.log("game state change received", event);
           const {
             payload: { questions, currentQuestionIndex },
           } = event;
@@ -192,7 +190,7 @@ export default function TabTwoScreen() {
 
           console.log("Current user count:", userCount);
 
-          if (userCount === 1) {
+          if (userCount <= 2) {
             setShouldCloseRoom(true);
           }
 
