@@ -1,5 +1,6 @@
 import { MaterialIcons } from "@expo/vector-icons";
 import {
+  AppState,
   StyleSheet,
   TextInput,
   View,
@@ -21,9 +22,10 @@ import { QuestionContainer } from "@/components/QuestionContainer";
 
 import { Question } from "@/types/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 
 export default function TabTwoScreen() {
-  const { sessionId, handle } = useSession();
+  const { handle } = useSession();
   const [userInput, setUserInput] = useState("");
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -37,6 +39,8 @@ export default function TabTwoScreen() {
   const gameStateIdRef = useRef(gameStateId);
 
   console.log("game id", gameStateId);
+  const appState = useRef(AppState.currentState);
+  console.log("App state", appState);
 
   useEffect(() => {
     shouldCloseRoomRef.current = shouldCloseRoom;
@@ -46,22 +50,29 @@ export default function TabTwoScreen() {
     gameStateIdRef.current = gameStateId;
   }, [gameStateId]);
 
-  useEffect(() => {
-    const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      console.log("CLOSE?", shouldCloseRoomRef.current);
-      if (shouldCloseRoomRef.current) {
-        await upsertGameState(questions, currentQuestionIndex, false);
-      }
-    };
+  // useEffect(() => {
+  //   const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
+  //     event.preventDefault();
+  //     console.log("CLOSE?", shouldCloseRoomRef.current);
+  //     if (shouldCloseRoomRef.current) {
+  //       await upsertGameState(questions, currentQuestionIndex, false);
+  //     }
+  //   };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
+  //   window.addEventListener("beforeunload", handleBeforeUnload);
 
-    // Cleanup function to remove the event listener
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
+  //   // Cleanup function to remove the event listener
+  //   return () => {
+  //     window.removeEventListener("beforeunload", handleBeforeUnload);
+  //   };
+  // }, []);
+
+  useBeforeUnload(async () => {
+    console.log("CLOSE?", shouldCloseRoomRef.current);
+    if (shouldCloseRoomRef.current) {
+      await upsertGameState(questions, currentQuestionIndex, false);
+    }
+  });
 
   const upsertGameState = async (
     questions: Question[] | null,
@@ -156,7 +167,7 @@ export default function TabTwoScreen() {
   }, []);
 
   useEffect(() => {
-    if (!room && sessionId) {
+    if (!room && handle) {
       const newRoom = supabase.channel(roomName);
       setRoom(newRoom);
 
@@ -201,7 +212,6 @@ export default function TabTwoScreen() {
         })
         .subscribe(async (status) => {
           const userStatus = {
-            sessionId,
             handle,
             online_at: new Date().toISOString(),
           };
@@ -256,9 +266,9 @@ export default function TabTwoScreen() {
           event: GAME_STATE_CHANGE,
           payload: { questions: updatedQuestions, currentQuestionIndex },
         });
-        upsertGameState(updatedQuestions, currentQuestionIndex, true);
       }
     });
+    upsertGameState(questions, currentQuestionIndex, true);
     return isCorrect;
   };
 
