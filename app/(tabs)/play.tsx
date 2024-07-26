@@ -8,12 +8,11 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 
 import { Feather } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
-import { ThemedView } from "@/components/ThemedView";
-import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { supabase } from "@/util/supabase";
 
 import { useSession } from "@/context/SessionContext";
@@ -233,16 +232,16 @@ export default function TabTwoScreen() {
         const updatedQuestions = questions.map((q) => {
           return {
             ...q,
-            answer: q.answer.map((innerA, i) => {
+            answer: q.answer.map((innerA) => {
               if (innerA.id === a.id) {
-                setScore(score + scores[`${i}`]);
+                setScore(score + scores[`${a.rank}`]);
               }
               return {
                 ...innerA,
                 is_revealed: innerA.id === a.id ? true : innerA.is_revealed,
                 reveal_text:
                   innerA.id === a.id
-                    ? `Guessed by Anonymous ${handle} (+${scores[`${i}`]})`
+                    ? `Guessed by Anonymous ${handle} (+${scores[`${a.rank}`]})`
                     : innerA.reveal_text,
               };
             }),
@@ -267,6 +266,10 @@ export default function TabTwoScreen() {
     }
     setUserInput("");
   };
+
+  if (!questions || !handle) {
+    return <ActivityIndicator size="large" style={{ marginTop: 20 }} />;
+  }
 
   return (
     <KeyboardAvoidingView
