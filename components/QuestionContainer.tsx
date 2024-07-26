@@ -72,16 +72,17 @@ const styles = StyleSheet.create({
     marginTop: StatusBar.currentHeight || 0,
   },
   item: {
-    padding: 20,
+    padding: 5,
     marginVertical: 8,
     marginHorizontal: 16,
+    height: 50,
   },
   title: {
-    fontSize: 32,
+    fontSize: 23,
   },
   text: {
     margin: 10,
-    fontSize: 30,
+    fontSize: 20,
   },
   subtitle: {
     color: "gray",

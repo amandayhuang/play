@@ -23,6 +23,7 @@ import { QuestionContainer } from "@/components/QuestionContainer";
 import { Question } from "@/types/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
+import { scores } from "@/constants/Scores";
 
 export default function TabTwoScreen() {
   const { handle } = useSession();
@@ -37,6 +38,7 @@ export default function TabTwoScreen() {
   const [shouldCloseRoom, setShouldCloseRoom] = useState(false);
   const shouldCloseRoomRef = useRef(shouldCloseRoom);
   const gameStateIdRef = useRef(gameStateId);
+  const [score, setScore] = useState(0);
 
   console.log("game id", gameStateId);
   const appState = useRef(AppState.currentState);
@@ -49,23 +51,6 @@ export default function TabTwoScreen() {
   useEffect(() => {
     gameStateIdRef.current = gameStateId;
   }, [gameStateId]);
-
-  // useEffect(() => {
-  //   const handleBeforeUnload = async (event: BeforeUnloadEvent) => {
-  //     event.preventDefault();
-  //     console.log("CLOSE?", shouldCloseRoomRef.current);
-  //     if (shouldCloseRoomRef.current) {
-  //       await upsertGameState(questions, currentQuestionIndex, false);
-  //     }
-  //   };
-
-  //   window.addEventListener("beforeunload", handleBeforeUnload);
-
-  //   // Cleanup function to remove the event listener
-  //   return () => {
-  //     window.removeEventListener("beforeunload", handleBeforeUnload);
-  //   };
-  // }, []);
 
   useBeforeUnload(async () => {
     console.log("CLOSE?", shouldCloseRoomRef.current);
@@ -248,13 +233,16 @@ export default function TabTwoScreen() {
         const updatedQuestions = questions.map((q) => {
           return {
             ...q,
-            answer: q.answer.map((innerA) => {
+            answer: q.answer.map((innerA, i) => {
+              if (innerA.id === a.id) {
+                setScore(score + scores[`${i}`]);
+              }
               return {
                 ...innerA,
                 is_revealed: innerA.id === a.id ? true : innerA.is_revealed,
                 reveal_text:
                   innerA.id === a.id
-                    ? `Guessed by Anonymous ${handle}`
+                    ? `Guessed by Anonymous ${handle} (+${scores[`${i}`]})`
                     : innerA.reveal_text,
               };
             }),
@@ -285,26 +273,30 @@ export default function TabTwoScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
-      <ThemedView style={styles.titleContainer}>
+      <View style={styles.headerView}>
         <ThemedText
           type="title"
           style={styles.text}
         >{`Welcome, Anonymous ${handle}.`}</ThemedText>
-      </ThemedView>
+        <ThemedText
+          type="title"
+          style={styles.text}
+        >{`Score: ${score}`}</ThemedText>
+      </View>
       <View style={styles.strikes}>
         <Feather
           name="x-octagon"
-          size={60}
+          size={40}
           color={strikes > 0 ? "red" : "gray"}
         />
         <Feather
           name="x-octagon"
-          size={60}
+          size={40}
           color={strikes > 1 ? "red" : "gray"}
         />
         <Feather
           name="x-octagon"
-          size={60}
+          size={40}
           color={strikes > 2 ? "red" : "gray"}
         />
       </View>
@@ -320,7 +312,11 @@ export default function TabTwoScreen() {
           onChangeText={setUserInput}
           placeholder="Enter guess"
         />
-        <TouchableOpacity style={styles.button} onPress={clickHandler}>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={clickHandler}
+          disabled={strikes > 2}
+        >
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
 
@@ -355,7 +351,7 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "row",
     justifyContent: "space-around",
-    margin: 10,
+    margin: 5,
   },
   container: {
     flex: 1,
@@ -394,7 +390,8 @@ const styles = StyleSheet.create({
   },
   text: {
     margin: 10,
-    fontSize: 26,
+    fontSize: 22,
+    marginTop: 25,
   },
   nextButton: {
     backgroundColor: "#007AFF",
@@ -402,5 +399,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     justifyContent: "center",
     marginRight: 5,
+  },
+  headerView: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 });
