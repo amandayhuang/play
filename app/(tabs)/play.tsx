@@ -24,7 +24,10 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useBeforeUnload } from "@/hooks/useBeforeUnload";
 import { scores } from "@/constants/Scores";
 
+import { Countdown } from "@/components/Countdown";
+
 export default function TabTwoScreen() {
+  const [seconds, setSeconds] = useState(30);
   const { handle } = useSession();
   const [userInput, setUserInput] = useState("");
   const [questions, setQuestions] = useState<Question[] | null>(null);
@@ -151,6 +154,15 @@ export default function TabTwoScreen() {
   }, []);
 
   useEffect(() => {
+    if (seconds === 0) {
+      const timer = setTimeout(() => {
+        nextQuestion();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [seconds]);
+
+  useEffect(() => {
     if (!room && handle) {
       const newRoom = supabase.channel(roomName);
       setRoom(newRoom);
@@ -221,6 +233,7 @@ export default function TabTwoScreen() {
     });
     setStrikes(0);
     upsertGameState(questions, nextIndex, true);
+    setSeconds(30);
   };
 
   const checkResponse = (input: string) => {
@@ -229,6 +242,7 @@ export default function TabTwoScreen() {
     questions[currentQuestionIndex]?.answer.forEach((a) => {
       if (a.title.toLowerCase() === input.toLowerCase()) {
         isCorrect = true;
+        setSeconds(30);
         const updatedQuestions = questions.map((q) => {
           return {
             ...q,
@@ -285,6 +299,7 @@ export default function TabTwoScreen() {
           type="title"
           style={styles.text}
         >{`Score: ${score}`}</ThemedText>
+        <Countdown seconds={seconds} setSeconds={setSeconds} />
       </View>
       <View style={styles.strikes}>
         <Feather
@@ -318,7 +333,7 @@ export default function TabTwoScreen() {
         <TouchableOpacity
           style={styles.button}
           onPress={clickHandler}
-          disabled={strikes > 2}
+          disabled={strikes > 2 || seconds === 0}
         >
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
